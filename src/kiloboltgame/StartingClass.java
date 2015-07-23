@@ -2,6 +2,7 @@ package kiloboltgame;
 
 import java.applet.Applet;
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.Frame;
 import java.awt.Graphics;
 import java.awt.Image;
@@ -16,13 +17,24 @@ import kiloboltgame.framework.Animation;
 
 public class StartingClass extends Applet implements Runnable, KeyListener {
 
-	private Robot robot;
-	private Heliboy hb, hb2;
+	enum GameState {
+		Running, Dead
+	}
+
+	GameState state = GameState.Running;
+
+	private static Robot robot;
+	public static Heliboy hb, hb2;
+
+	public static int score = 0;
+	private Font font = new Font(null, Font.BOLD, 30);
+
 	private Image image, currentSprite, character, character2, character3,
 			characterDown, characterJumped, background, heliboy, heliboy2,
 			heliboy3, heliboy4, heliboy5;
 
-	public static Image tilegrassTop, tilegrassBot, tilegrassLeft, tilegrassRight, tiledirt;
+	public static Image tilegrassTop, tilegrassBot, tilegrassLeft,
+			tilegrassRight, tiledirt;
 
 	private Graphics second;
 	private URL base;
@@ -68,7 +80,6 @@ public class StartingClass extends Applet implements Runnable, KeyListener {
 		tilegrassLeft = getImage(base, "data/tilegrassleft.png");
 		tilegrassRight = getImage(base, "data/tilegrassright.png");
 
-
 		anim = new Animation();
 		anim.addFrame(character, 1250);
 		anim.addFrame(character2, 50);
@@ -92,6 +103,7 @@ public class StartingClass extends Applet implements Runnable, KeyListener {
 	public void start() {
 		bg1 = new Background(0, 0);
 		bg2 = new Background(2160, 0);
+		robot = new Robot();
 
 		// Initialize Tiles
 		try {
@@ -103,7 +115,6 @@ public class StartingClass extends Applet implements Runnable, KeyListener {
 
 		hb = new Heliboy(340, 360);
 		hb2 = new Heliboy(700, 360);
-		robot = new Robot();
 
 		Thread thread = new Thread(this);
 		thread.start();
@@ -158,35 +169,42 @@ public class StartingClass extends Applet implements Runnable, KeyListener {
 
 	@Override
 	public void run() {
-		while (true) {
-			robot.update();
-			if (robot.isJumped()) {
-				currentSprite = characterJumped;
-			} else if (robot.isJumped() == false && robot.isDucked() == false) {
-				currentSprite = anim.getImage();
-			}
 
-			ArrayList projectiles = robot.getProjectiles();
-			for (int i = 0; i < projectiles.size(); i++) {
-				Projectile p = (Projectile) projectiles.get(i);
-				if (p.isVisible() == true) {
-					p.update();
-				} else {
-					projectiles.remove(i);
+		if (state == GameState.Running) {
+			while (true) {
+				robot.update();
+				if (robot.isJumped()) {
+					currentSprite = characterJumped;
+				} else if (robot.isJumped() == false
+						&& robot.isDucked() == false) {
+					currentSprite = anim.getImage();
 				}
-			}
 
-			updateTiles();
-			hb.update();
-			hb2.update();
-			bg1.update();
-			bg2.update();
-			animate();
-			repaint();
-			try {
-				Thread.sleep(17);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
+				ArrayList projectiles = robot.getProjectiles();
+				for (int i = 0; i < projectiles.size(); i++) {
+					Projectile p = (Projectile) projectiles.get(i);
+					if (p.isVisible() == true) {
+						p.update();
+					} else {
+						projectiles.remove(i);
+					}
+				}
+
+				updateTiles();
+				hb.update();
+				hb2.update();
+				bg1.update();
+				bg2.update();
+				animate();
+				repaint();
+				try {
+					Thread.sleep(17);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+				if (robot.getCenterY() > 500) {
+					state = GameState.Dead;
+				}
 			}
 		}
 	}
@@ -214,23 +232,36 @@ public class StartingClass extends Applet implements Runnable, KeyListener {
 
 	@Override
 	public void paint(Graphics g) {
-		g.drawImage(background, bg1.getBgX(), bg1.getBgY(), this);
-		g.drawImage(background, bg2.getBgX(), bg2.getBgY(), this);
-		paintTiles(g);
 
-		ArrayList projectiles = robot.getProjectiles();
-		for (int i = 0; i < projectiles.size(); i++) {
-			Projectile p = (Projectile) projectiles.get(i);
-			g.setColor(Color.YELLOW);
-			g.fillRect(p.getX(), p.getY(), 10, 5);
+		if (state == GameState.Running) {
+
+			g.drawImage(background, bg1.getBgX(), bg1.getBgY(), this);
+			g.drawImage(background, bg2.getBgX(), bg2.getBgY(), this);
+			paintTiles(g);
+
+			ArrayList projectiles = robot.getProjectiles();
+			for (int i = 0; i < projectiles.size(); i++) {
+				Projectile p = (Projectile) projectiles.get(i);
+				g.setColor(Color.YELLOW);
+				g.fillRect(p.getX(), p.getY(), 10, 5);
+			}
+
+			g.drawImage(currentSprite, robot.getCenterX() - 61,
+					robot.getCenterY() - 63, this);
+			g.drawImage(hanim.getImage(), hb.getCenterX() - 48,
+					hb.getCenterY() - 48, this);
+			g.drawImage(hanim.getImage(), hb2.getCenterX() - 48,
+					hb2.getCenterY() - 48, this);
+			g.setFont(font);
+			g.setColor(Color.WHITE);
+			g.drawString(Integer.toString(score), 740, 30);
+		} else if (state == GameState.Dead) {
+			g.setColor(Color.BLACK);
+			g.fillRect(0, 0, 800, 480);
+			g.setColor(Color.WHITE);
+			g.drawString("Dead", 360, 240);
 		}
 
-		g.drawImage(currentSprite, robot.getCenterX() - 61,
-				robot.getCenterY() - 63, this);
-		g.drawImage(hanim.getImage(), hb.getCenterX() - 48,
-				hb.getCenterY() - 48, this);
-		g.drawImage(hanim.getImage(), hb2.getCenterX() - 48,
-				hb2.getCenterY() - 48, this);
 	}
 
 	private void updateTiles() {
@@ -282,6 +313,7 @@ public class StartingClass extends Applet implements Runnable, KeyListener {
 		case KeyEvent.VK_CONTROL:
 			if (robot.isDucked() == false && robot.isJumped() == false) {
 				robot.shoot();
+				robot.setReadyToFire(false);
 			}
 			break;
 
@@ -312,6 +344,10 @@ public class StartingClass extends Applet implements Runnable, KeyListener {
 		case KeyEvent.VK_SPACE:
 			break;
 
+		case KeyEvent.VK_CONTROL:
+			robot.setReadyToFire(true);
+			break;
+
 		}
 
 	}
@@ -328,6 +364,10 @@ public class StartingClass extends Applet implements Runnable, KeyListener {
 
 	public static Background getBg2() {
 		return bg2;
+	}
+
+	public static Robot getRobot() {
+		return robot;
 	}
 
 }
